@@ -19,6 +19,19 @@ As well as Puppet modules:
 * puppetlabs/concat
 * puppetlabs/stdlib  
 
+## Deploy test environment
+
+Get Vagrant at: https://www.vagrantup.com/downloads.html
+
+To startup this environment, you need to get the required Puppet modules (done by Rake or r10k), and provision a machine
+with Vagrant.
+
+```
+bundle install
+bundle exec rake deploy
+vagrant up
+```
+
 ## Production notes
 
 * Multiple instances would need multiple IP-adresses (because of SSH mainly)
