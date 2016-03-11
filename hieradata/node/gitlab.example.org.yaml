@@ -1,0 +1,90 @@
+---
+docker::images::images:
+  sameersbn/redis:
+    image_tag: latest
+  sameersbn/gitlab:
+    image_tag: 8.5.4-1
+  sameersbn/postgresql:
+    image_tag: 9.4-14
+
+docker::run_instance::instance:
+  redis:
+    restart_service: true
+    image: sameersbn/redis:latest
+    volumes:
+      - /srv/docker/gitlab/redis/data:/var/lib/redis
+  postgresql:
+    image: 'sameersbn/postgresql:9.4-14'
+    env:
+      - DB_USER=gitlab
+      - DB_PASS=password
+      - DB_NAME=gitlabhq_production
+    volumes:
+      - /srv/docker/gitlab/postgresql/data:/var/lib/postgresql
+  gitlab:
+    image: 'sameersbn/gitlab:8.5.4-1'
+    links:
+      - redis:redisio
+      - postgresql:postgresql
+    ports:
+      - "10080:80"
+      - "10022:22"
+    depends:
+      - redis
+      - postgresql
+    env:
+      - TZ=Europe/Berlin
+      - GITLAB_TIMEZONE=Berlin
+
+      - GITLAB_SECRETS_DB_KEY_BASE=SECRETKEY
+
+      - GITLAB_HOST=localhost
+      #- GITLAB_PORT=10080
+      #- GITLAB_SSH_PORT=10022
+      - GITLAB_HTTPS=true
+      - SSL_SELF_SIGNED=true
+
+      - GITLAB_EMAIL=git@example.com
+      - GITLAB_EMAIL_REPLY_TO=git@example.com
+      #- GITLAB_INCOMING_EMAIL_ADDRESS=reply@example.com
+
+      - GITLAB_BACKUP_SCHEDULE=daily
+      - GITLAB_BACKUP_TIME=01:00
+
+      - SMTP_ENABLED=false
+      - SMTP_HOST=mailrelay
+
+      - LDAP_ENABLED=false
+      - LDAP_LABEL=COMPANY
+      - LDAP_HOST=int.company.com
+      - LDAP_BIND_DN=serviceuser@int.company.com
+      - LDAP_PASS=password
+      - LDAP_ALLOW_USERNAME_OR_EMAIL_LOGIN=false
+      - LDAP_BASE=ou=users,dc=int,dc=company,dc=com
+    volumes:
+      - /srv/docker/gitlab/gitlab/data:/home/git/data
+
+apache::default_vhost: false
+apache::vhosts:
+  gitlab:
+    servername: gitlab.example.org
+    port: 80
+    docroot: /nonexistent
+    manage_docroot: false
+    redirect_status: permanent
+    redirect_dest: https://localhost:10443/
+  gitlab-ssl:
+    servername: gitlab.example.org
+    port: 443
+    docroot: /nonexistent
+    manage_docroot: false
+    proxy_preserve_host: true
+    proxy_pass:
+      - path: /
+        url: http://localhost:10080/
+    ssl: true
+    #ssl_chain: /null
+    ssl_key: /etc/ssl/private/ssl-cert-snakeoil.key
+    ssl_cert: /etc/ssl/certs/ssl-cert-snakeoil.pem
+    request_headers:
+      - 'set X-Forwarded-Proto "https"'
